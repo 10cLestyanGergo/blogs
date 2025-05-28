@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <title>Blog posztok kezelése</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Blog posztok</h1>
+
+    <div id="postForm">
+      <h2 id="formTitle">Új blog poszt</h2>
+      <input type="hidden" id="postId" />
+      <label for="name">Szerző (Név):</label>
+      <input type="text" id="name" placeholder="Szerző neve" />
+      <label for="title">Cím:</label>
+      <input type="text" id="title" placeholder="Bejegyzés címe" />
+      <label for="category">Kategória:</label>
+      <input type="text" id="category" placeholder="Kategória (pl. Tech, Gasztronómia...)" />
+      <label for="content">Tartalom:</label>
+      <textarea id="content" rows="4" placeholder="Írd ide a bejegyzés tartalmát..."></textarea>
+      <button onclick="savePost()">Mentés</button>
+      <button onclick="resetForm()">Mégse</button>
+      <div id="errorMessage" class="error" style="display:none;"></div>
+    </div>
+  
+    <h2>Bejegyzések</h2>
+    <div id="posts"></div>
+
+  <script>
+    async function fetchPosts() {
+      try {
+        const res = await fetch('/posts');
+        const posts = await res.json();
+        const container = document.getElementById('posts');
+        container.innerHTML = '';
+        posts.forEach(post => {
+          const div = document.createElement('div');
+          div.className = 'post';
+          div.innerHTML = `
+            <strong>${post.title}</strong> <em>(${post.category})</em><br>
+            <small>Szerző: ${post.name} | Létrehozva: ${new Date(post.date).toLocaleString()} | Módosítva: ${post.modify ? new Date(post.modify).toLocaleString() : '-'}</small>
+            <p>${post.content}</p>
+            <div class="actions">
+              <button onclick="editPost(${post.id})">Szerkesztés</button>
+              <button onclick="deletePost(${post.id})">Törlés</button>
+            </div>
+          `;
+          container.appendChild(div);
+        });
+      } catch (err) {
+        console.error("Hiba a bejegyzések lekérésekor:", err);
+        document.getElementById('posts').innerText = 'Nem sikerült betölteni a bejegyzéseket.';
+      }
+    }
+
+    async function savePost() {
+      const id = document.getElementById('postId').value;
+      const name = document.getElementById('name').value.trim();
+      const title = document.getElementById('title').value.trim();
+      const category = document.getElementById('category').value.trim();
+      const content = document.getElementById('content').value.trim();
+
+      if (!name || !title || !category || !content) {
+        alert('Kérlek, tölts ki minden mezőt!');
+        return;
+      }
+
+      const data = { name, title, category, content };
+
+      const method = id ? 'PUT' : 'POST';
+      const url = id ? `/posts/${id}` : '/posts';
+
+      await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+      resetForm();
+      fetchPosts();
+    }
+
+    function editPost(id) {
+      fetch(`/posts/${id}`)
+        .then(res => res.json())
+        .then(post => {
+          document.getElementById('postId').value = post.id;
+          document.getElementById('name').value = post.name;
+          document.getElementById('title').value = post.title;
+          document.getElementById('category').value = post.category;
+          document.getElementById('content').value = post.content;
+          document.getElementById('formTitle').innerText = 'Bejegyzés szerkesztése';
+        });
+    }
+
+    function resetForm() {
+      document.getElementById('postId').value = '';
+      document.getElementById('name').value = '';
+      document.getElementById('title').value = '';
+      document.getElementById('category').value = '';
+      document.getElementById('content').value = '';
+      document.getElementById('formTitle').innerText = 'Új blog poszt';
+    }
+
+    async function deletePost(id) {
+      if (!confirm('Biztos törlöd a posztot?')) return;
+      await fetch(`/posts/${id}`, { method: 'DELETE' });
+      fetchPosts();
+    }
+
+    // Első betöltéskor lekérjük a posztokat
+    fetchPosts();
+  </script>
+</body>
+</html>
